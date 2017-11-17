@@ -67,36 +67,40 @@ class Track extends Element {
     }
 }
 
+class Tank {
+    constructor(x, y, width, height, elementsColors, direction) {
+        this._x = x;
+        this._y = y;
+        this._width = width;
+        this._height = height;
+        this._colors = elementsColors;
+        this._direction = direction;
+        this._hull = new Hull(this._x, this._y, this._width, this._height, this._colors.hullColor);
+        this._track = new Track(this._x, this._y, this._width, this._height, this._colors.trackColor);
+        this._turret = new Turret(this._x, this._y, this._width, this._height, this._colors.turretColor);
+        this._cannon = new Cannon(this._x, this._y, this._width, this._height, this._colors.cannonColor);
+    }
+
+    draw() {
+        this._hull.draw();
+        this._track.draw();
+        this._turret.draw();
+        this._cannon.draw();
+    }
+}
+
 let size = 20;
 
-let hull = null;
-let hullX = 500;
-let hullY = 300;
-let hullColor = 'darkgreen';
+let tank = null;
+let tankX = 500;
+let tankY = 300;
 
-let turret = null;
-let turretX = hullX;
-let turretY = hullY;
-let turretColor = 'grey';
+let elementsColors = {
+    hullColor : 'darkgreen',
+    turretColor : 'darkgrey',
+    cannonColor : 'black',
+    trackColor : 'grey'
+};
 
-let cannon = null;
-let cannonX = hullX;
-let cannonY = hullY;
-let cannonColor = 'black';
-
-let track = null;
-let trackX = hullX;
-let trackY = hullY;
-let trackColor = 'darkgrey';
-
-hull = new Hull(hullX, hullY, size, size, hullColor);
-hull.draw();
-
-turret = new Turret(turretX, turretY, size, size, turretColor);
-turret.draw();
-
-cannon = new Cannon(cannonX, cannonY, size, size, cannonColor);
-cannon.draw();
-
-track = new Track(trackX, trackY, size, size, trackColor);
-track.draw();   
+tank = new Tank(tankX, tankY, size, size, elementsColors);
+tank.draw();
