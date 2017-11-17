@@ -46,6 +46,10 @@ class Hull extends Element {
         return this._direction;
     }
 
+    set direction(newDirection) {
+        this._direction = newDirection;
+    }
+
     draw() {
         let prevColor = ctx.fillStyle;
         ctx.fillStyle = this._color;
@@ -61,6 +65,10 @@ class Cannon extends Element {
         this._offsetY = this._height;
         this._lengthX = this._width / 10 + 1;
         this._lengthY = this._height / 2 + this._height / 4;
+    }
+
+    set direction(newDirection) {
+        this._direction = newDirection;
     }
 
     draw(direction) {
@@ -98,6 +106,10 @@ class Turret extends Element {
         return this._direction;
     }
 
+    set direction(newDirection) {
+        this._direction = newDirection;
+    }
+
     draw() {
         let prevColor = ctx.fillStyle;
         ctx.fillStyle = this._color;
@@ -113,6 +125,10 @@ class Track extends Element {
         this._offsetY = this._height / 2;
         this._lengthX = this._width / 10;
         this._lengthY = this._height + 1;
+    }
+
+    set direction(newDirection) {
+        this._direction = newDirection;
     }
 
     draw(direction) {
@@ -142,12 +158,20 @@ class Tank {
         this._width = width;
         this._height = height;
         this._colors = elementsColors;
-        this._speed = this.speed;
+        this._speed = speed;
         this._direction = direction;
         this._hull = new Hull(this._x, this._y, this._width, this._height, this._colors.hullColor, this._speed, this._direction);
         this._track = new Track(this._x, this._y, this._width, this._height, this._colors.trackColor, this._speed, this._direction);
         this._turret = new Turret(this._x, this._y, this._width, this._height, this._colors.turretColor, this._speed, this._direction);
         this._cannon = new Cannon(this._x, this._y, this._width, this._height, this._colors.cannonColor, this._speed, this._direction);
+    }
+
+    set direction(newDirection) {
+        this._direction = newDirection;
+        this._hull.direction = newDirection;
+        this._track.direction = newDirection;
+        this._turret.direction = newDirection;
+        this._cannon.direction = newDirection;
     }
 
     draw() {
@@ -170,7 +194,7 @@ let size = 20;
 let tank = null;
 let tankX = 500;
 let tankY = 300;
-let tankSpeed = 1;
+let tankSpeed = 2;
 let tankStartDirection = 'up';
 
 let elementsColors = {
@@ -180,11 +204,38 @@ let elementsColors = {
     trackColor : 'grey'
 };
 
+let keyActions = {
+    32: 'space',
+    37: 'left',
+    38: 'up',
+    39: 'right',
+    40: 'down', 
+    65: 'left',
+    87: 'up',
+    68: 'right',
+    83: 'down'
+};
+
 tank = new Tank(tankX, tankY, size, size, elementsColors, tankSpeed, tankStartDirection);
 tank.draw();
+
+$('body').keydown(event => {
+    let key = event.keyCode;
+    switch(key) {
+        case 37:
+        case 38:
+        case 39:
+        case 40:
+        tank.direction = keyActions[key];
+        ctx.clearRect(0, 0, fieldWidth, fieldHeight);
+        tank.move();
+        tank.draw();
+        break;
+    }
+});
 
 // setInterval(() => {
 //     ctx.clearRect(0, 0, fieldWidth, fieldHeight);
 //     tank.move();
 //     tank.draw();
-// }, 100)
+// }, 10);
