@@ -46,8 +46,8 @@ class Hull extends Element {
         return this._direction;
     }
 
-    set direction(newDirection) {
-        this._direction = newDirection;
+    set direction(direction) {
+        this._direction = direction;
     }
 
     draw() {
@@ -67,12 +67,11 @@ class Cannon extends Element {
         this._lengthY = this._height / 2 + this._height / 4;
     }
 
-    set direction(newDirection) {
-        this._direction = newDirection;
+    set direction(direction) {
+        this._direction = direction;
     }
 
-    draw(direction) {
-        this._direction = direction;
+    draw() {
         let prevColor = ctx.fillStyle;
         ctx.fillStyle = this._color;
         switch(this._direction) {
@@ -106,8 +105,8 @@ class Turret extends Element {
         return this._direction;
     }
 
-    set direction(newDirection) {
-        this._direction = newDirection;
+    set direction(direction) {
+        this._direction = direction;
     }
 
     draw() {
@@ -127,12 +126,11 @@ class Track extends Element {
         this._lengthY = this._height + 1;
     }
 
-    set direction(newDirection) {
-        this._direction = newDirection;
+    set direction(direction) {
+        this._direction = direction;
     }
 
-    draw(direction) {
-        this._direction = direction;
+    draw() {
         let prevColor = ctx.fillStyle;
         ctx.fillStyle = this._color;
         switch(this._direction) {
@@ -151,6 +149,57 @@ class Track extends Element {
     }
 }
 
+class Bullet extends Element {
+    constructor(x, y, width, height, color, speed, direction) {
+        super(x, y, width, height, color, speed, direction);
+        this._offsetX = this._width / 20;
+        this._offsetY = this._height + (this._height / 10 + 1) * 2;
+        this._lengthX = this._width / 10 + 1;
+        this._lengthY = (this._height / 10 + 1) * 2;
+    }
+
+    set direction(direction) {
+        this._direction = direction;
+    }
+
+    draw() {
+        let prevColor = ctx.fillStyle;
+        ctx.fillStyle = this._color;
+        switch(this._direction) {
+            case 'up':
+            ctx.fillRect(this._x - this._offsetX, this._y - this._offsetY, this._lengthX, this._lengthY);
+            break;
+            case 'down':
+            ctx.fillRect(this._x - this._offsetX, this._y + this._offsetY - this._lengthY, this._lengthX, this._lengthY);
+            break;
+            case 'left':
+            ctx.fillRect(this._x - this._offsetY, this._y - this._offsetX, this._lengthY, this._lengthX);
+            break;
+            case 'right':
+            ctx.fillRect(this._x + this._offsetY - this._lengthY, this._y - this._offsetX, this._lengthY, this._lengthX);
+            break;
+        }
+        ctx.fillStyle = prevColor;
+    }
+
+    clear() {
+        switch(this._direction) {
+            case 'up':
+            ctx.clearRect(this._x - this._offsetX, this._y - this._offsetY, this._lengthX, this._lengthY);
+            break;
+            case 'down':
+            ctx.clearRect(this._x - this._offsetX, this._y + this._offsetY - this._lengthY, this._lengthX, this._lengthY);
+            break;
+            case 'left':
+            ctx.clearRect(this._x - this._offsetY, this._y - this._offsetX, this._lengthY, this._lengthX);
+            break;
+            case 'right':
+            ctx.clearRect(this._x + this._offsetY - this._lengthY, this._y - this._offsetX, this._lengthY, this._lengthX);
+            break;
+        }
+    }
+}
+
 class Tank {
     constructor(x, y, width, height, elementsColors, speed, direction) {
         this._x = x;
@@ -166,19 +215,19 @@ class Tank {
         this._cannon = new Cannon(this._x, this._y, this._width, this._height, this._colors.cannonColor, this._speed, this._direction);
     }
 
-    set direction(newDirection) {
-        this._direction = newDirection;
-        this._hull.direction = newDirection;
-        this._track.direction = newDirection;
-        this._turret.direction = newDirection;
-        this._cannon.direction = newDirection;
+    set direction(direction) {
+        this._direction = direction;
+        this._hull.direction = direction;
+        this._track.direction = direction;
+        this._turret.direction = direction;
+        this._cannon.direction = direction;
     }
 
     draw() {
         this._hull.draw();
-        this._track.draw(this._hull.direction);
+        this._track.draw();
         this._turret.draw();
-        this._cannon.draw(this._turret.direction);
+        this._cannon.draw();
     }
 
     move() {
@@ -186,6 +235,32 @@ class Tank {
         this._track.move();
         this._turret.move();
         this._cannon.move();
+        switch(this._direction) {
+            case 'up':
+            this._y -= this._speed;
+            break;
+            case 'down':
+            this._y += this._speed;
+            break;
+            case 'left':
+            this._x -= this._speed;
+            break;
+            case 'right':
+            this._x += this._speed;
+            break;
+        }
+    }
+
+    shoot() {
+        let bulletX = this._x;
+        let bulletY = this._y;
+        let bulletSpeed = this._speed * 2;
+        let bullet = new Bullet(bulletX, bulletY, this._width, this._height, this._colors.bulletColor, bulletSpeed, this._direction);
+        setInterval(() => {
+            bullet.clear();
+            bullet.move();
+            bullet.draw();
+        }, 10);
     }
 }
 
@@ -195,13 +270,14 @@ let tank = null;
 let tankX = 500;
 let tankY = 300;
 let tankSpeed = 2;
-let tankStartDirection = 'up';
+let tankDirection = 'up';
 
 let elementsColors = {
     hullColor : 'darkgreen',
     turretColor : 'darkgrey',
     cannonColor : 'black',
-    trackColor : 'grey'
+    trackColor : 'grey',
+    bulletColor : 'black'
 };
 
 let keyActions = {
@@ -216,7 +292,7 @@ let keyActions = {
     83: 'down'
 };
 
-tank = new Tank(tankX, tankY, size, size, elementsColors, tankSpeed, tankStartDirection);
+tank = new Tank(tankX, tankY, size, size, elementsColors, tankSpeed, tankDirection);
 tank.draw();
 
 $('body').keydown(event => {
@@ -230,6 +306,9 @@ $('body').keydown(event => {
         ctx.clearRect(0, 0, fieldWidth, fieldHeight);
         tank.move();
         tank.draw();
+        break;
+        case 32:
+        tank.shoot();
         break;
     }
 });
