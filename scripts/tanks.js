@@ -5,248 +5,224 @@ let fieldHeight = canvas.height;
 let canfi = new CanFi(canvas);
 
 class Element {
-    constructor(x, y, width, height, color, speed, direction) {
-        this._x = x;
-        this._y = y;
+    constructor(width, height, color) {
         this._width = width;
         this._height = height;
         this._color = color;
-        this._speed = speed;
-        this._direction = direction;
     }
 
-    move() {
-        switch(this._direction) {
-            case 'up':
-            this._y -= this._speed;
-            break;
-            case 'down':
-            this._y += this._speed;
-            break;
-            case 'left':
-            this._x -= this._speed;
-            break;
-            case 'right':
-            this._x += this._speed;
-            break;
-        }
+    get width() {
+        return this._width;
+    }
+
+    get height() {
+        return this._height;
+    }
+
+    get color() {
+        return this._color;
     }
 }
 
 class Hull extends Element {
-    constructor(x, y, width, height, hullColor, trackColor, speed, direction) {
-        super(x, y, width, height, null, speed, direction);
-        this._hullColor = hullColor;
-        this._trackColor = trackColor;
-        this._offsetX = this._width / 2;
-        this._offsetY = this._height / 2;
-        this._lengthX = this._width + 1;
-        this._lengthY = this._height + 1;
-        this._track = new Track(this._x, this._y, this._width, this._height, this._trackColor, this._speed, this._direction);
+    constructor(width, height, color) {
+        super(width, height, color);
+        this._offsetX = (this._width - 1) / 2; // 10px
+        this._offsetY = (this._height - 1) / 2; // 10px
     }
 
-    get direction() {
-        return this._direction;
+    get offsetWidth() {
+        return this._offsetX;
     }
 
-    set direction(direction) {
-        this._direction = direction;
+    get offsetHeight() {
+        return this._offsetY;
     }
 
-    draw() {
+    draw(x, y, direction) {
         let prevColor = ctx.fillStyle;
-        ctx.fillStyle = this._hullColor;
-        ctx.fillRect(this._x - this._offsetX, this._y - this._offsetY, this._lengthX, this._lengthY);
-        ctx.fillStyle = this._trackColor;
-        this._track.draw();
+        ctx.fillStyle = this._color;
+        ctx.fillRect(x - this._offsetX, y - this._offsetY, this._width, this._height);
         ctx.fillStyle = prevColor;
     }
 
-    isHit(x, y) {
-        
-    }
-
-    move() {
-        super.move();
-        this._track.direction = this._direction;
-        this._track.move();
-    }
-
-    clear() {
-        this._track.clear();
-        ctx.clearRect(this._x - this._offsetX, this._y - this._offsetY, this._lengthX, this._lengthY);
+    clear(x, y, direction) {
+        ctx.clearRect(x - this._offsetX, y - this._offsetY, this._width, this._height);
     }
 }
 
-class Cannon extends Element {
-    constructor(x, y, width, height, color, speed, direction) {
-        super(x, y, width, height, color, speed, direction);
-        this._offsetX = this._width / 20; // 1px
-        this._offsetY = this._height; // 20px
-        this._lengthX = this._width / 10 + 1; // 3px
-        this._lengthY = this._height / 2 + this._height / 4; // 15px
+class Track extends Element {
+    constructor(width, height, color) {
+        super(width, height, color);
+        this._offsetX = (this._width - 1) / 2; // 1px
+        this._offsetY = (this._height - 1) / 2; // 10px
+    }
+    
+    get offsetWidth() {
+        return this._offsetX;
     }
 
-    set direction(direction) {
-        this._direction = direction;
+    get offsetHeight() {
+        return this._offsetY;
     }
 
-    draw() {
+    draw(x, y, direction) {
         let prevColor = ctx.fillStyle;
         ctx.fillStyle = this._color;
-        switch(this._direction) {
+        switch(direction) {
             case 'up':
-            ctx.fillRect(this._x - this._offsetX, this._y - this._offsetY, this._lengthX, this._lengthY);
-            break;
             case 'down':
-            ctx.fillRect(this._x - this._offsetX, this._y + this._offsetY - this._lengthY + 1, this._lengthX, this._lengthY);
+            ctx.fillRect(x - this._offsetX, y - this._offsetY, this._width, this._height);
             break;
             case 'left':
-            ctx.fillRect(this._x - this._offsetY, this._y - this._offsetX, this._lengthY, this._lengthX);
-            break;
             case 'right':
-            ctx.fillRect(this._x + this._offsetY - this._lengthY + 1, this._y - this._offsetX, this._lengthY, this._lengthX);
-            break;
+            ctx.fillRect(x - this._offsetY, y - this._offsetX, this._height, this._width);
+            break;    
         }
         ctx.fillStyle = prevColor;
     }
-
-    clear() {
-        switch(this._direction) {
+    
+    clear(x, y, direction) {
+        switch(direction) {
             case 'up':
-            ctx.clearRect(this._x - this._offsetX, this._y - this._offsetY, this._lengthX, this._lengthY);
-            break;
             case 'down':
-            ctx.clearRect(this._x - this._offsetX, this._y + this._offsetY - this._lengthY + 1, this._lengthX, this._lengthY);
+            ctx.clearRect(x - this._offsetX, y - this._offsetY, this._width, this._height);
             break;
             case 'left':
-            ctx.clearRect(this._x - this._offsetY, this._y - this._offsetX, this._lengthY, this._lengthX);
-            break;
             case 'right':
-            ctx.clearRect(this._x + this._offsetY - this._lengthY + 1, this._y - this._offsetX, this._lengthY, this._lengthX);
-            break;
+            ctx.clearRect(x - this._offsetY, y - this._offsetX, this._height, this._width);
+            break;    
         }
     }
 }
 
 class Turret extends Element {
-    constructor(x, y, width, height, color, speed, direction) {
-        super(x, y, width, height, color, speed, direction);
-        this._offsetX = this._width / 4; // 5px
-        this._offsetY = this._height / 4; // 5px
-        this._lengthX = this._width / 2 + 1; // 11px
-        this._lengthY = this._height / 2 + 1; // 11px
+    constructor(width, height, color) {
+        super(width, height, color);
+        this._offsetX = (this._width - 1) / 2; // 5px
+        this._offsetY = (this._height - 1) / 2; // 5px
+        
     }
 
-    get direction() {
-        return this._direction;
+    get offsetWidth() {
+        return this._offsetX;
     }
 
-    set direction(direction) {
-        this._direction = direction;
+    get offsetHeight() {
+        return this._offsetY;
     }
 
-    draw() {
+    draw(x, y, direction) {
         let prevColor = ctx.fillStyle;
         ctx.fillStyle = this._color;
-        ctx.fillRect(this._x - this._offsetX, this._y - this._offsetY, this._lengthX, this._lengthY);
+        ctx.fillRect(x - this._offsetX, y - this._offsetY, this._width, this._height);
         ctx.fillStyle = prevColor;
     }
-
-    clear() {
-        ctx.clearRect(this._x - this._offsetX, this._y - this._offsetY, this._lengthX, this._lengthY);
+    
+    clear(x, y, direction) {
+        ctx.clearRect(x - this._offsetX, y - this._offsetY, this._width, this._height);
     }
 }
 
-class Track extends Element {
-    constructor(x, y, width, height, color, speed, direction) {
-        super(x, y, width, height, color, speed, direction);
-        this._offsetX = this._width / 2;
-        this._offsetY = this._height / 2;
-        this._lengthX = this._width / 10;
-        this._lengthY = this._height + 1;
+class Cannon extends Element {
+    constructor(width, height, color) {
+        super(width, height, color);
+        this._offsetX = (this._width - 1) / 2; // 1px
+        this._offsetY = (this._height - 1) / 2; // 7px
     }
 
-    set direction(direction) {
-        this._direction = direction;
+    get offsetWidth() {
+        return this._offsetX;
     }
 
-    draw() {
+    get offsetHeight() {
+        return this._offsetY;
+    }
+
+    draw(x, y, direction) {
         let prevColor = ctx.fillStyle;
         ctx.fillStyle = this._color;
-        switch(this._direction) {
+        switch(direction) {
             case 'up':
             case 'down':
-            ctx.fillRect(this._x - this._offsetX, this._y - this._offsetY, this._lengthX, this._lengthY);
-            ctx.fillRect(this._x + this._offsetX- this._lengthX + 1, this._y - this._offsetY, this._lengthX, this._lengthY);
+            ctx.fillRect(x - this._offsetX, y - this._offsetY, this._width, this._height);
             break;
             case 'left':
             case 'right':
-            ctx.fillRect(this._x - this._offsetX, this._y - this._offsetY, this._lengthY, this._lengthX);
-            ctx.fillRect(this._x - this._offsetX, this._y + this._offsetY- this._lengthX + 1, this._lengthY, this._lengthX);
-            break;    
+            ctx.fillRect(x - this._offsetY, y - this._offsetX, this._height, this._width);
+            break;
         }
         ctx.fillStyle = prevColor;
     }
 
-    clear() {
-        switch(this._direction) {
+    clear(x, y, direction) {
+        switch(direction) {
             case 'up':
             case 'down':
-            ctx.clearRect(this._x - this._offsetX, this._y - this._offsetY, this._lengthX, this._lengthY);
-            ctx.clearRect(this._x + this._offsetX- this._lengthX + 1, this._y - this._offsetY, this._lengthX, this._lengthY);
+            ctx.clearRect(x - this._offsetX, y - this._offsetY, this._width, this._height);
             break;
             case 'left':
             case 'right':
-            ctx.clearRect(this._x - this._offsetX, this._y - this._offsetY, this._lengthY, this._lengthX);
-            ctx.clearRect(this._x - this._offsetX, this._y + this._offsetY- this._lengthX + 1, this._lengthY, this._lengthX);
-            break;    
+            ctx.clearRect(x - this._offsetY, y - this._offsetX, this._height, this._width);
+            break;
         }
     }
 }
 
-class Bullet extends Element {
-    constructor(x, y, width, height, color, speed, direction) {
-        super(x, y, width, height, color, speed, direction);
-        this._offsetX = this._width / 20; // 1px
-        this._offsetY = this._height + (this._height / 10 + 1) * 2; // 26px
-        this._lengthX = this._width / 10 + 1; // 3px
-        this._lengthY = (this._height / 10 + 1) * 2; // 6px
+class Bullet {
+    constructor(x, y, width, height, color, direction, speed) {
+        this._x = x;
+        this._y = y;
+        this._width = width; // 3px
+        this._height = height;  // 5px
+        this._color = color;
+        this._direction = direction;
+        this._speed = speed;
+        this._offsetWidth = (this._width - 1) / 2; // 1px
+        this._offsetHeight = (this._height - 1) / 2; // 2px
     }
 
     set direction(direction) {
         this._direction = direction;
+    }
+
+    get offsetWidth() {
+        return this._offsetWidth;
+    }
+
+    get offsetHeight() {
+        return this._offsetHeight;
     }
 
     get fore() {
         switch(this._direction) {
             case 'up':
             return {
-                xMin : this._x - this._offsetX,
-                xMax : this._x + this._offsetX,
-                yMin : this._y - this._lengthY / 2,
-                yMax : this._y - this._lengthY / 2
+                xMin : this._x - this._offsetWidth,
+                xMax : this._x + this._offsetWidth,
+                yMin : this._y - this._offsetHeight,
+                yMax : this._y - this._offsetHeight
             };
             case 'down':
             return {
-                xMin : this._x - this._offsetX,
-                xMax : this._x + this._offsetX,
-                yMin : this._y + this._lengthY / 2,
-                yMax : this._y + this._lengthY / 2
+                xMin : this._x - this._offsetWidth,
+                xMax : this._x + this._offsetWidth,
+                yMin : this._y + this._offsetHeight,
+                yMax : this._y + this._offsetHeight
             };
             case 'left':
             return {
-                xMin : this._x - this._offsetX,
-                xMax : this._x - this._offsetX,
-                yMin : this._y - (this._lengthX - 1) / 2,
-                yMax : this._y + (this._lengthX - 1) / 2
+                xMin : this._x - this._offsetHeight,
+                xMax : this._x - this._offsetHeight,
+                yMin : this._y - this._offsetWidth,
+                yMax : this._y + this._offsetWidth
             };
             case 'right':
             return {
-                xMin : this._x + this._offsetX,
-                xMax : this._x + this._offsetX,
-                yMin : this._y - (this._lengthX - 1) / 2,
-                yMax : this._y + (this._lengthX - 1) / 2
+                xMin : this._x + this._offsetHeight,
+                xMax : this._x + this._offsetHeight,
+                yMin : this._y - this._offsetWidth,
+                yMax : this._y + this._offsetWidth
             };
         }
     }
@@ -283,16 +259,12 @@ class Bullet extends Element {
         ctx.fillStyle = this._color;
         switch(this._direction) {
             case 'up':
-            ctx.fillRect(this._x - this._offsetX, this._y - this._offsetY, this._lengthX, this._lengthY);
-            break;
             case 'down':
-            ctx.fillRect(this._x - this._offsetX, this._y + this._offsetY - this._lengthY, this._lengthX, this._lengthY);
+            ctx.fillRect(this._x - this._offsetWidth, this._y - this._offsetHeight, this._width, this._height);
             break;
             case 'left':
-            ctx.fillRect(this._x - this._offsetY, this._y - this._offsetX, this._lengthY, this._lengthX);
-            break;
             case 'right':
-            ctx.fillRect(this._x + this._offsetY - this._lengthY, this._y - this._offsetX, this._lengthY, this._lengthX);
+            ctx.fillRect(this._x - this._offsetHeight, this._y - this._offsetWidth, this._height, this._width);
             break;
         }
         ctx.fillStyle = prevColor;
@@ -301,27 +273,40 @@ class Bullet extends Element {
     clear() {
         switch(this._direction) {
             case 'up':
-            ctx.clearRect(this._x - this._offsetX, this._y - this._offsetY, this._lengthX, this._lengthY);
-            break;
             case 'down':
-            ctx.clearRect(this._x - this._offsetX, this._y + this._offsetY - this._lengthY, this._lengthX, this._lengthY);
+            ctx.clearRect(this._x - this._offsetWidth, this._y - this._offsetHeight, this._width, this._height);
             break;
             case 'left':
-            ctx.clearRect(this._x - this._offsetY, this._y - this._offsetX, this._lengthY, this._lengthX);
+            case 'right':
+            ctx.clearRect(this._x - this._offsetHeight, this._y - this._offsetWidth, this._height, this._width);
+            break;
+        }
+    }
+
+    move() {
+        switch(this._direction) {
+            case 'up':
+            this._y -= this._speed;
+            break;
+            case 'down':
+            this._y += this._speed;
+            break;
+            case 'left':
+            this._x -= this._speed;
             break;
             case 'right':
-            ctx.clearRect(this._x + this._offsetY - this._lengthY, this._y - this._offsetX, this._lengthY, this._lengthX);
+            this._x += this._speed;
             break;
         }
     }
 
     isForeHit(x, y) {
-        if (x == this.fore.xMin || x == this.fore.xMax) {
+        if (x >= this.fore.xMin && x <= this.fore.xMax) {
             if (y >= this.fore.yMin && y <= this.fore.yMax) {
                 return true;
             }
         }
-        if (y == this.fore.yMin || y == this.fore.yMax) {
+        if (y >= this.fore.yMin && y <= this.fore.yMax) {
             if (x >= this.fore.xMin && x <= this.fore.xMax) {
                 return true;
             }
@@ -331,49 +316,178 @@ class Bullet extends Element {
 }
 
 class Tank {
-    constructor(x, y, width, height, elementsColors, speed, direction) {
+    constructor(x, y, parts, direction, speed) {
         this._x = x;
         this._y = y;
-        this._width = width;
-        this._height = height;
-        this._colors = elementsColors;
-        this._speed = speed;
+        this._hull = parts.hull;
+        this._track = parts.track;
+        this._turret = parts.turret;
+        this._cannon = parts.cannon;
         this._direction = direction;
-        this._hull = new Hull(this._x, this._y, this._width, this._height, this._colors.hullColor, this._colors.trackColor, this._speed, this._direction);
-        this._turret = new Turret(this._x, this._y, this._width, this._height, this._colors.turretColor, this._speed, this._direction);
-        this._cannon = new Cannon(this._x, this._y, this._width, this._height, this._colors.cannonColor, this._speed, this._direction);
+        this._speed = speed;
+        this._bulletProps = {
+            width: this._cannon.width,
+            height: (this._hull.height - 1) / 5 + 1,
+            color: this._cannon.color,
+            speed: this._speed
+        };
+    }
+
+    get direction() {
+        return this._direction;
     }
 
     set direction(direction) {
         this._direction = direction;
-        this._hull.direction = direction;
-        this._turret.direction = direction;
-        this._cannon.direction = direction;
+    }
+
+    get hullAttribs() {
+        let x = this._x;
+        let y = this._y;
+        return {
+            position: {
+                x: x,
+                y: y
+            }
+        };
+    }
+
+    get trackLeftAttribs() {
+        let x;
+        let y;
+        switch(this._direction) {
+            case 'up':
+            x = this._x - this._hull.offsetWidth + this._track.offsetWidth;
+            y = this._y - this._hull.offsetHeight + this._track.offsetHeight;
+            break;
+            case 'down':
+            x = this._x + this._hull.offsetWidth - this._track.offsetWidth;
+            y = this._y + this._hull.offsetHeight - this._track.offsetHeight;
+            break;
+            case 'left':
+            x = this._x - this._hull.offsetHeight + this._track.offsetHeight;
+            y = this._y + this._hull.offsetWidth - this._track.offsetWidth;
+            break;
+            case 'right':
+            x = this._x + this._hull.offsetHeight - this._track.offsetHeight;
+            y = this._y - this._hull.offsetWidth + this._track.offsetWidth;
+            break;
+        }
+        return {
+            position: {
+                x: x,
+                y: y
+            }
+        };
+    }
+
+    get trackRightAttribs() {
+        let x;
+        let y;
+        switch(this._direction) {
+            case 'up':
+            x = this._x + this._hull.offsetWidth - this._track.offsetWidth;
+            y = this._y - this._hull.offsetHeight + this._track.offsetHeight;
+            break;
+            case 'down':
+            x = this._x - this._hull.offsetWidth + this._track.offsetWidth;
+            y = this._y + this._hull.offsetHeight - this._track.offsetHeight;
+            break;
+            case 'left':
+            x = this._x - this._hull.offsetHeight + this._track.offsetHeight;
+            y = this._y - this._hull.offsetWidth + this._track.offsetWidth;
+            break;
+            case 'right':
+            x = this._x + this._hull.offsetHeight - this._track.offsetHeight;
+            y = this._y + this._hull.offsetWidth - this._track.offsetWidth;
+            break;
+        }
+        return {
+            position: {
+                x: x,
+                y: y
+            }
+        };
+    }
+
+    get turretAttribs() {
+        let x = this._x;
+        let y = this._y;
+        return {
+            position: {
+                x: x,
+                y: y
+            }
+        };
+    }
+
+    get cannonAttribs() {
+        let x;
+        let y;
+        switch(this._direction) {
+            case 'up':
+            x = this._x;
+            y = this._y - this._turret.offsetHeight - this._cannon.offsetHeight;
+            break;
+            case 'down':
+            x = this._x;
+            y = this._y + this._turret.offsetHeight + this._cannon.offsetHeight;
+            break;
+            case 'left':
+            x = this._x - this._turret.offsetWidth - this._cannon.offsetHeight;
+            y = this._y;
+            break;
+            case 'right':
+            x = this._x + this._turret.offsetWidth + this._cannon.offsetHeight;
+            y = this._y;
+            break;
+        }
+        return {
+            position: {
+                x: x,
+                y: y
+            }
+        };
+    }
+
+    get bulletProps() {
+        return this._bulletProps;
+    }
+
+    set bulletProps(value) {
+        this._bulletProps.width = value.width;
+        this._bulletProps.height = value.height;
+        this._color = value.color;
+        this._speed = value.speed;
     }
 
     draw() {
-        this._hull.draw();
-        this._turret.draw();
-        this._cannon.draw();
+        this._hull.draw(this.hullAttribs.position.x, this.hullAttribs.position.y, this._direction);
+        this._track.draw(this.trackLeftAttribs.position.x, this.trackLeftAttribs.position.y, this._direction);
+        this._track.draw(this.trackRightAttribs.position.x, this.trackRightAttribs.position.y, this._direction);
+        this._turret.draw(this.turretAttribs.position.x, this.turretAttribs.position.y, this._direciton);
+        this._cannon.draw(this.cannonAttribs.position.x, this.cannonAttribs.position.y, this._direction);
     }
 
     get activeBorder() {
         return {
-            xMin : this._x - this._width / 2,
-            yMin : this._y - this._height / 2,
-            xMax : this._x + this._width / 2,
-            yMax : this._y + this._height / 2
+            xMin : this._x - this._hull.offsetWidth,
+            yMin : this._y - this._hull.offsetHeight,
+            xMax : this._x + this._hull.offsetWidth,
+            yMax : this._y + this._hull.offsetHeight
         };
     }
 
     isBorderHit(x, y) {
-        if (x == this.activeBorder.xMin || x == this.activeBorder.xMax) {
+        if (x >= this.activeBorder.xMin && x <= this.activeBorder.xMax) {
             if (y >= this.activeBorder.yMin && y <= this.activeBorder.yMax) {
+                console.log(x, y);
                 return true;
             }
         }
-        if (y == this.activeBorder.yMin || y == this.activeBorder.yMax) {
+        if (y >= this.activeBorder.yMin && y <= this.activeBorder.yMax) {
             if (x >= this.activeBorder.xMin && x <= this.activeBorder.xMax) {
+                
                 return true;
             }
         }
@@ -381,9 +495,6 @@ class Tank {
     }
 
     move() {
-        this._hull.move();
-        this._turret.move();
-        this._cannon.move();
         switch(this._direction) {
             case 'up':
             this._y -= this._speed;
@@ -401,25 +512,35 @@ class Tank {
     }
 
     shoot() {
-        let bulletX = this._x;
-        let bulletY = this._y;
-        let bulletSpeed = this._speed;
-        let bullet = new Bullet(bulletX, bulletY, this._width, this._height, this._colors.bulletColor, bulletSpeed, this._direction);
-        let shootId = setInterval(() => {
-            bullet.clear();
-            bullet.move();
-            bullet.draw();
-        }, 5);
-        return {
-            bullet : bullet,
-            bulletId : shootId
-        };
+        let x;
+        let y;
+        switch(this._direction) {
+            case 'up':
+            x = this.cannonAttribs.position.x;
+            y = this.cannonAttribs.position.y - this._cannon.offsetHeight - this._bulletProps.height;
+            break;
+            case 'down':
+            x = this.cannonAttribs.position.x;
+            y = this.cannonAttribs.position.y + this._cannon.offsetHeight + this._bulletProps.height;
+            break;
+            case 'left':
+            x = this.cannonAttribs.position.x - this._cannon.offsetHeight - this._bulletProps.height;
+            y = this.cannonAttribs.position.y;
+            break;
+            case 'right':
+            x = this.cannonAttribs.position.x + this._cannon.offsetHeight + this._bulletProps.height;
+            y = this.cannonAttribs.position.y;
+            break;
+        }
+        return new Bullet(x, y, this._bulletProps.width, this._bulletProps.height, this._bulletProps.color, this._direction, this._bulletProps.speed);
     }
 
     clear() {
-        this._hull.clear();
-        this._turret.clear();
-        this._cannon.clear();
+        this._hull.clear(this.hullAttribs.position.x, this.hullAttribs.position.y);
+        this._track.clear(this.trackLeftAttribs.position.x, this.trackLeftAttribs.position.y, this._direction);
+        this._track.clear(this.trackRightAttribs.position.x, this.trackRightAttribs.position.y, this._direction);
+        this._turret.clear(this.turretAttribs.position.x, this.turretAttribs.position.y);
+        this._cannon.clear(this.cannonAttribs.position.x, this.cannonAttribs.position.y, this._direction);
     }
 }
 
@@ -431,12 +552,35 @@ let tankY = 300;
 let tankSpeed = 2;
 let tankDirection = 'up';
 
-let elementsColors = {
-    hullColor : 'darkgreen',
-    turretColor : 'darkgrey',
-    cannonColor : 'black',
-    trackColor : 'grey',
-    bulletColor : 'black'
+let hullProps = {
+    width: size + 1,
+    height: size + 1,
+    color: 'darkgreen'
+};
+
+let trackProps = {
+    width: size / 10 + 1,
+    height: size + 1,
+    color: 'gray'
+};
+
+let turretProps = {
+    width: size / 2 + 1,
+    height: size / 2 + 1,
+    color: 'darkgray'
+};
+
+let cannonProps = {
+    width: size / 10 + 1,
+    height: size / 2 + size / 5 + 1,
+    color: 'black'
+};
+
+let tankParts = {
+    hull: new Hull(hullProps.width, hullProps.height, hullProps.color),
+    track: new Track(trackProps.width, trackProps.height, trackProps.color),
+    turret: new Turret(turretProps.width, turretProps.height, turretProps.color),
+    cannon: new Cannon(cannonProps.width, cannonProps.height, cannonProps.color)
 };
 
 let keyActions = {
@@ -451,9 +595,9 @@ let keyActions = {
     83: 'down'
 };
 
-tank = new Tank(tankX, tankY, size, size, elementsColors, tankSpeed, tankDirection);
+tank = new Tank(tankX, tankY, tankParts, tankDirection, tankSpeed);
 tank.draw();
-let enemy = new Tank(500, 100, size, size, elementsColors, tankSpeed, 'right');
+let enemy = new Tank(400, 100, tankParts, 'up', tankSpeed);
 enemy.draw();
 
 $('body').keydown(event => {
@@ -469,12 +613,20 @@ $('body').keydown(event => {
         tank.draw();
         break;
         case 32:
-        let bulletShoot = tank.shoot();
-        if (bulletShoot.bullet.forePoints.some(point => enemy.isBorderHit(point.x, point.y))) {
-            enemy.clear();
-            bulletShoot.bullet.clear();
-            clearInterval(bulletShoot.bulletId);
-        }
+        tank.shoot();
+        let bullet = tank.shoot();
+        bullet.draw();
+        let shootId = setInterval(() => {
+            bullet.clear();
+            bullet.move();
+            if (bullet.forePoints.some(point => enemy.isBorderHit(point.x, point.y))) {
+                clearInterval(shootId);
+                bullet.clear();
+                enemy.clear();
+            } else {
+                bullet.draw();
+            }
+        }, 5);
         break;
     }
 });
