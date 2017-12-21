@@ -4,6 +4,13 @@ let fieldWidth = canvas.width;
 let fieldHeight = canvas.height;
 let canfi = new CanFi(canvas);
 
+let direction = {
+    UP: 'up',
+    DOWN: 'down',
+    LEFT: 'left',
+    RIGHT: 'right'
+};
+
 class Element {
     constructor(width, height, color) {
         this._width = width;
@@ -449,16 +456,85 @@ class Tank {
             }
         };
     }
-
+    
     get bulletProps() {
         return this._bulletProps;
     }
-
+    
     set bulletProps(value) {
         this._bulletProps.width = value.width;
         this._bulletProps.height = value.height;
         this._color = value.color;
         this._speed = value.speed;
+    }
+    
+    get hitbox() {
+        return {
+            xMin : this._x - this._hull.offsetWidth,
+            yMin : this._y - this._hull.offsetHeight,
+            xMax : this._x + this._hull.offsetWidth,
+            yMax : this._y + this._hull.offsetHeight
+        };
+    }
+
+    get fore() {
+        switch(this._direction) {
+            case 'up':
+            return {
+                xMin : this._x - this._hull.offsetWidth,
+                xMax : this._x + this._hull.offsetWidth,
+                yMin : this._y - this._hull.offsetHeight,
+                yMax : this._y - this._hull.offsetHeight
+            };
+            case 'down':
+            return {
+                xMin : this._x - this._hull.offsetWidth,
+                xMax : this._x + this._hull.offsetWidth,
+                yMin : this._y + this._hull.offsetHeight,
+                yMax : this._y + this._hull.offsetHeight
+            };
+            case 'left':
+            return {
+                xMin : this._x - this._hull.offsetHeight,
+                xMax : this._x - this._hull.offsetHeight,
+                yMin : this._y - this._hull.offsetWidth,
+                yMax : this._y + this._hull.offsetWidth
+            };
+            case 'right':
+            return {
+                xMin : this._x + this._hull.offsetHeight,
+                xMax : this._x + this._hull.offsetHeight,
+                yMin : this._y - this._hull.offsetWidth,
+                yMax : this._y + this._hull.offsetWidth
+            };
+        }
+    }
+
+    get forePoints() {
+        let points = [];
+        switch(this._direction) {
+            case 'up':
+            for (let x = this.fore.xMin; x <= this.fore.xMax; x++) {
+                points.push({ x : x, y : this.fore.yMin });
+            }
+            break;
+            case 'down':
+            for (let x = this.fore.xMin; x <= this.fore.xMax; x++) {
+                points.push({ x : x, y : this.fore.yMax });
+            }
+            break;
+            case 'left':
+            for (let y = this.fore.yMin; y <= this.fore.yMax; y++) {
+                points.push({ x : this.fore.xMin, y : y });
+            }
+            break;
+            case 'right':
+            for (let y = this.fore.yMin; y <= this.fore.yMax; y++) {
+                points.push({ x : this.fore.xMax, y : y });
+            }
+            break;
+        }
+        return points;
     }
 
     draw() {
@@ -469,25 +545,9 @@ class Tank {
         this._cannon.draw(this.cannonAttribs.position.x, this.cannonAttribs.position.y, this._direction);
     }
 
-    get activeBorder() {
-        return {
-            xMin : this._x - this._hull.offsetWidth,
-            yMin : this._y - this._hull.offsetHeight,
-            xMax : this._x + this._hull.offsetWidth,
-            yMax : this._y + this._hull.offsetHeight
-        };
-    }
-
-    isBorderHit(x, y) {
-        if (x >= this.activeBorder.xMin && x <= this.activeBorder.xMax) {
-            if (y >= this.activeBorder.yMin && y <= this.activeBorder.yMax) {
-                console.log(x, y);
-                return true;
-            }
-        }
-        if (y >= this.activeBorder.yMin && y <= this.activeBorder.yMax) {
-            if (x >= this.activeBorder.xMin && x <= this.activeBorder.xMax) {
-                
+    isHitboxHit(x, y) {
+        if (x >= this.hitbox.xMin && x <= this.hitbox.xMax) {
+            if (y >= this.hitbox.yMin && y <= this.hitbox.yMax) {
                 return true;
             }
         }
@@ -507,6 +567,23 @@ class Tank {
             break;
             case 'right':
             this._x += this._speed;
+            break;
+        }
+    }
+
+    moveBack() {
+        switch(this._direction) {
+            case 'up':
+            this._y += this._speed;
+            break;
+            case 'down':
+            this._y -= this._speed;
+            break;
+            case 'left':
+            this._x += this._speed;
+            break;
+            case 'right':
+            this._x -= this._speed;
             break;
         }
     }
@@ -544,43 +621,149 @@ class Tank {
     }
 }
 
+class Interaction {
+    static isBulletHitsTank(bullet, tank) {
+        return bullet.forePoints.some(point => tank.isHitboxHit(point.x, point.y));
+    }
+
+    static isBulletHitsWall(bullet) {
+        if (bullet.fore.yMin == 0 || bullet.fore.yMax == fieldHeight || bullet.fore.xMin == 0 || bullet.fore.xMax == fieldWidth) {
+            return true;
+        }
+        return false;
+    }
+
+    static isTankCollidesTank(tank, anotherTank) {
+        return tank.forePoints.some(point => anotherTank.isHitboxHit(point.x, point.y));
+    }
+
+    static isTankCollidesWall(tank) {
+        if (tank.fore.yMin == 0 || tank.fore.yMax == fieldHeight || tank.fore.xMin == 0 || tank.fore.xMax == fieldWidth) {
+            return true;
+        }
+        return false;
+    }
+}
+
+class Handler {
+    static handleShot(tank, enemies) {
+        let bullet = tank.shoot();
+        bullet.draw();
+        let shotId = setInterval(() => {
+            bullet.clear();
+            bullet.move();
+            if (Interaction.isBulletHitsWall(bullet)) {
+                bullet.clear();
+                clearInterval(shotId);
+            } else if (enemies.length != 0) {
+                let isEnemyHit = enemies.some((enemy, index) => {
+                    if (Interaction.isBulletHitsTank(bullet, enemy)) {
+                        enemy.clear();
+                        enemies.splice(index, 1);
+                        //delete enemy;
+                        return true;
+                    }
+                    return false;
+                });
+                if (isEnemyHit) {
+                    bullet.clear();
+                    clearInterval(shotId);
+                } else {
+                    bullet.draw();
+                }
+            } else {
+                bullet.draw();
+            }
+        }, 5);
+    }
+
+    static handleCollision(tank, others) {
+        if (!Interaction.isTankCollidesWall(tank)) {
+            if (others.length != 0) {
+                return others.some(anotherTank => Interaction.isTankCollidesTank(tank, anotherTank));
+            }
+        } else if (Interaction.isTankCollidesWall(tank)) {
+            return true;
+        }
+        return false;
+    }
+
+    static handleMove(tank, direction, otherTanks) {
+        tank.clear();
+        tank.direction = direction;
+        tank.move();
+        let isCollided = this.handleCollision(tank, otherTanks);
+        if (isCollided) {
+            tank.moveBack();
+            tank.draw();    
+        } else {
+            tank.draw();
+        }
+        otherTanks.forEach(tank => tank.clear());
+        otherTanks.forEach(tank => tank.draw());
+    }
+}
+
 let size = 20; // 20px is standart size
 
-let tank = null;
-let tankX = 500;
-let tankY = 300;
-let tankSpeed = 2;
-let tankDirection = 'up';
-
-let hullProps = {
+let hullSizes = {
     width: size + 1,
-    height: size + 1,
-    color: 'darkgreen'
+    height: size + 1
 };
 
-let trackProps = {
+let trackSizes = {
     width: size / 10 + 1,
-    height: size + 1,
-    color: 'gray'
+    height: size + 1
 };
 
-let turretProps = {
+let turretSizes = {
     width: size / 2 + 1,
-    height: size / 2 + 1,
-    color: 'darkgray'
+    height: size / 2 + 1
 };
 
-let cannonProps = {
+let cannonSizes = {
     width: size / 10 + 1,
-    height: size / 2 + size / 5 + 1,
-    color: 'black'
+    height: size / 2 + size / 5 + 1
 };
 
-let tankParts = {
-    hull: new Hull(hullProps.width, hullProps.height, hullProps.color),
-    track: new Track(trackProps.width, trackProps.height, trackProps.color),
-    turret: new Turret(turretProps.width, turretProps.height, turretProps.color),
-    cannon: new Cannon(cannonProps.width, cannonProps.height, cannonProps.color)
+let hulls = {
+    model1: new Hull(hullSizes.width, hullSizes.height, '#006400'),
+    model2: new Hull(hullSizes.width, hullSizes.height, '#8b0000')
+};
+
+let tracks = {
+    model1: new Track(trackSizes.width, trackSizes.height, '#aaaaaa'),
+    model2: new Track(trackSizes.width, trackSizes.height, '#aaaaaa')
+};
+
+let turrets = {
+    model1: new Turret(turretSizes.width, turretSizes.height, '#3cb371'),
+    model2: new Turret(turretSizes.width, turretSizes.height, '#daa520')
+};
+
+let cannons = {
+    model1: new Cannon(cannonSizes.width, cannonSizes.height, '#444444'),
+    model2: new Cannon(cannonSizes.width, cannonSizes.height, '#444444')
+};
+
+let tankPlayerProps = {
+    parts: {
+        hull: hulls.model1,
+        track: tracks.model1,
+        turret: turrets.model1,
+        cannon: cannons.model1    
+    },
+    speed: 2
+};
+
+let tankEnemyProps = {
+    parts: {
+        hull: hulls.model2,
+        track: tracks.model2,
+        turret: turrets.model2,
+        cannon: cannons.model2    
+    },
+    speed: 2
 };
 
 let keyActions = {
@@ -595,10 +778,14 @@ let keyActions = {
     83: 'down'
 };
 
-tank = new Tank(tankX, tankY, tankParts, tankDirection, tankSpeed);
-tank.draw();
-let enemy = new Tank(400, 100, tankParts, 'up', tankSpeed);
-enemy.draw();
+let tankPlayer = new Tank(500, 300, tankPlayerProps.parts, direction.UP, tankPlayerProps.speed);
+tankPlayer.draw();
+enemies = [];
+enemies.push(new Tank(200, 100, tankEnemyProps.parts, direction.RIGHT, tankEnemyProps.speed));
+enemies.push(new Tank(350, 200, tankEnemyProps.parts, direction.DOWN, tankEnemyProps.speed));
+enemies.push(new Tank(700, 300, tankEnemyProps.parts, direction.RIGHT, tankEnemyProps.speed));
+enemies.push(new Tank(550, 100, tankEnemyProps.parts, direction.DOWN, tankEnemyProps.speed));
+enemies.forEach(enemy => enemy.draw());
 
 $('body').keydown(event => {
     let key = event.keyCode;
@@ -607,26 +794,18 @@ $('body').keydown(event => {
         case 38:
         case 39:
         case 40:
-        tank.clear();
-        tank.direction = keyActions[key];
-        tank.move();
-        tank.draw();
+        let direction = keyActions[key];
+        Handler.handleMove(tankPlayer, direction, enemies);
         break;
         case 32:
-        tank.shoot();
-        let bullet = tank.shoot();
-        bullet.draw();
-        let shootId = setInterval(() => {
-            bullet.clear();
-            bullet.move();
-            if (bullet.forePoints.some(point => enemy.isBorderHit(point.x, point.y))) {
-                clearInterval(shootId);
-                bullet.clear();
-                enemy.clear();
-            } else {
-                bullet.draw();
-            }
-        }, 5);
+        Handler.handleShot(tankPlayer, enemies);
         break;
     }
 });
+
+/* let others = [tankPlayer];
+setInterval(() => {
+    enemies.forEach(tank => {
+        Handler.handleShot(tank, others);
+    })
+}, 3000); */
