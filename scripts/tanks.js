@@ -11,6 +11,14 @@ let direction = {
     RIGHT: 'right'
 };
 
+let blockSection = {
+    TOP: 'top',
+    BOTTOM: 'bottom',
+    LEFT: 'left',
+    RIGHT: 'right',
+    FULL: 'full'
+};
+
 class Element {
     constructor(width, height, color) {
         this._width = width;
@@ -177,7 +185,7 @@ class Cannon extends Element {
 }
 
 class Bullet {
-    constructor(x, y, width, height, color, direction, speed) {
+    constructor(x, y, width, height, color, direction, speed, blockSize) {
         this._x = x;
         this._y = y;
         this._width = width; // 3px
@@ -185,8 +193,13 @@ class Bullet {
         this._color = color;
         this._direction = direction;
         this._speed = speed;
+        this._blockSize = blockSize;
         this._offsetWidth = (this._width - 1) / 2; // 1px
         this._offsetHeight = (this._height - 1) / 2; // 2px
+    }
+
+    get direction() {
+        return this._direction;
     }
 
     set direction(direction) {
@@ -261,6 +274,60 @@ class Bullet {
         return points;
     }
 
+    get hitbox() {
+        switch(this._direction) {
+            case 'up':
+            case 'down':
+            return {
+                xMin : this._x - this._offsetWidth,
+                xMax : this._x + this._offsetWidth,
+                yMin : this._y - this._offsetHeight,
+                yMax : this._y + this._offsetHeight
+            };
+            case 'left':
+            case 'right':
+            return {
+                xMin : this._x - this._offsetHeight,
+                xMax : this._x + this._offsetHeight,
+                yMin : this._y - this._offsetWidth,
+                yMax : this._y + this._offsetWidth
+            };
+        }
+    }
+
+    get interbox() {
+        switch(this._direction) {
+            case 'up':
+            return {
+                xMin: this._x - this._offsetWidth - (this._blockSize - 1) / 2,
+                xMax: this._x + this._offsetWidth + (this._blockSize - 1) / 2,
+                yMin: this._y - this._offsetHeight - (this._blockSize - 1) / 2 - 1,
+                yMax: this._y + this._height
+            };
+            case 'down':
+            return {
+                xMin: this._x - this._offsetWidth - (this._blockSize - 1) / 2,
+                xMax: this._x + this._offsetWidth + (this._blockSize - 1) / 2,
+                yMin: this._y - this._height,
+                yMax: this._y + this._offsetHeight + (this._blockSize - 1) / 2 + 1
+            };
+            case 'left':
+            return {
+                xMin: this._x - this._offsetWidth - (this._blockSize - 1) / 2 - 1,
+                xMax: this._x + this._height,
+                yMin: this._y - this._offsetHeight - (this._blockSize - 1) / 2,
+                yMax: this._y + this._offsetHeight + (this._blockSize - 1) / 2
+            };
+            case 'right':
+            return {
+                xMin: this._x - this._height,
+                xMax: this._x + this._offsetWidth + (this._blockSize - 1) / 2 + 1,
+                yMin: this._y - this._offsetHeight - (this._blockSize - 1) / 2,
+                yMax: this._y + this._offsetHeight + (this._blockSize - 1) / 2
+            };
+        }
+    }
+
     draw() {
         let prevColor = ctx.fillStyle;
         ctx.fillStyle = this._color;
@@ -313,8 +380,21 @@ class Bullet {
                 return true;
             }
         }
-        if (y >= this.fore.yMin && y <= this.fore.yMax) {
-            if (x >= this.fore.xMin && x <= this.fore.xMax) {
+        return false;
+    }
+
+    isHitboxHit(x, y) {
+        if (x >= this.hitbox.xMin && x <= this.hitbox.xMax) {
+            if (y >= this.hitbox.yMin && y <= this.hitbox.yMax) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    isInterboxHit(x, y) {
+        if (x >= this.interbox.xMin && x <= this.interbox.xMax) {
+            if (y >= this.interbox.yMin && y <= this.interbox.yMax) {
                 return true;
             }
         }
@@ -346,6 +426,13 @@ class Tank {
 
     set direction(direction) {
         this._direction = direction;
+    }
+
+    get center() {
+        return {
+            x: this._x,
+            y: this._y
+        };
     }
 
     get hullAttribs() {
@@ -471,10 +558,44 @@ class Tank {
     get hitbox() {
         return {
             xMin : this._x - this._hull.offsetWidth,
-            yMin : this._y - this._hull.offsetHeight,
             xMax : this._x + this._hull.offsetWidth,
+            yMin : this._y - this._hull.offsetHeight,
             yMax : this._y + this._hull.offsetHeight
         };
+    }
+
+    get interbox() {
+        let blockSize = this._hull.width;
+        switch(this._direction) {
+            case 'up':
+            return {
+                xMin: this._x - this._hull.offsetWidth - (blockSize - 1) / 2,
+                xMax: this._x + this._hull.offsetWidth + (blockSize - 1) / 2,
+                yMin: this._y - this._hull.offsetHeight - blockSize - 1,
+                yMax: this._y - this._hull.offsetHeight
+            };
+            case 'down':
+            return {
+                xMin: this._x - this._hull.offsetWidth - (blockSize - 1) / 2,
+                xMax: this._x + this._hull.offsetWidth + (blockSize - 1) / 2,
+                yMin: this._y + this._hull.offsetHeight,
+                yMax: this._y + this._hull.offsetHeight + blockSize + 1
+            };
+            case 'left':
+            return {
+                xMin: this._x - this._hull.offsetWidth - blockSize - 1,
+                xMax: this._x - this._hull.offsetWidth,
+                yMin: this._y - this._hull.offsetHeight - (blockSize - 1) / 2,
+                yMax: this._y + this._hull.offsetHeight + (blockSize - 1) / 2
+            };
+            case 'right':
+            return {
+                xMin: this._x + this._hull.offsetWidth,
+                xMax: this._x + this._hull.offsetWidth + blockSize + 1,
+                yMin: this._y - this._hull.offsetHeight - (blockSize - 1) / 2,
+                yMax: this._y + this._hull.offsetHeight + (blockSize - 1) / 2
+            };
+        }
     }
 
     get fore() {
@@ -554,6 +675,15 @@ class Tank {
         return false;
     }
 
+    isInterboxHit(x, y) {
+        if (x >= this.interbox.xMin && x <= this.interbox.xMax) {
+            if (y >= this.interbox.yMin && y <= this.interbox.yMax) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     move() {
         switch(this._direction) {
             case 'up':
@@ -591,25 +721,26 @@ class Tank {
     shoot() {
         let x;
         let y;
+        let blockSize = this._hull.width;
         switch(this._direction) {
             case 'up':
             x = this.cannonAttribs.position.x;
-            y = this.cannonAttribs.position.y - this._cannon.offsetHeight - this._bulletProps.height;
+            y = this.cannonAttribs.position.y - this._cannon.offsetHeight + this._bulletProps.height;
             break;
             case 'down':
             x = this.cannonAttribs.position.x;
-            y = this.cannonAttribs.position.y + this._cannon.offsetHeight + this._bulletProps.height;
+            y = this.cannonAttribs.position.y + this._cannon.offsetHeight - this._bulletProps.height;
             break;
             case 'left':
-            x = this.cannonAttribs.position.x - this._cannon.offsetHeight - this._bulletProps.height;
+            x = this.cannonAttribs.position.x - this._cannon.offsetHeight + this._bulletProps.height;
             y = this.cannonAttribs.position.y;
             break;
             case 'right':
-            x = this.cannonAttribs.position.x + this._cannon.offsetHeight + this._bulletProps.height;
+            x = this.cannonAttribs.position.x + this._cannon.offsetHeight - this._bulletProps.height;
             y = this.cannonAttribs.position.y;
             break;
         }
-        return new Bullet(x, y, this._bulletProps.width, this._bulletProps.height, this._bulletProps.color, this._direction, this._bulletProps.speed);
+        return new Bullet(x, y, this._bulletProps.width, this._bulletProps.height, this._bulletProps.color, this._direction, this._bulletProps.speed, blockSize);
     }
 
     clear() {
@@ -621,24 +752,294 @@ class Tank {
     }
 }
 
+class Block {
+    constructor(x, y, size) {
+        this._x = x;
+        this._y = y;
+        this._size = size;
+        this._section = blockSection.FULL;
+    }
+
+    get offsetSize() {
+        return (this._size - 1) / 2;
+    }
+
+    get section() {
+        return this._section;
+    }
+
+    set section(value) {
+        this._section = value;
+    }
+
+    get hitbox() {
+        return {
+            xMin : this._x - this.offsetSize,
+            xMax : this._x + this.offsetSize,
+            yMin : this._y - this.offsetSize,
+            yMax : this._y + this.offsetSize
+        };
+    }
+
+    get center() {
+        return {
+            x: this._x,
+            y: this._y
+        };
+    }
+
+    isHitboxHit(x, y) {
+        if (x >= this.hitbox.xMin && x <= this.hitbox.xMax) {
+            if (y >= this.hitbox.yMin && y <= this.hitbox.yMax) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    clear() {
+        ctx.clearRect(this._x - this.offsetSize, this._y - this.offsetSize, this._size, this._size);
+    }
+}
+
+class Brick extends Block {
+    constructor(x, y, size) {
+        super(x, y, size);
+        this._hitbox = {
+            xMin : this._x - this.offsetSize,
+            xMax : this._x + this.offsetSize,
+            yMin : this._y - this.offsetSize,
+            yMax : this._y + this.offsetSize
+        };
+        this._isBroken = false;
+    }
+
+    get hitbox() {
+        return this._hitbox;
+    }
+
+    set hitbox(value) {
+        this._hitbox = value;
+    }
+
+    get isBroken() {
+        return this._isBroken;
+    }
+
+    set isBroken(value) {
+        this._isBroken = value;
+    }
+
+    draw() {
+        let prevColor = ctx.fillStyle;
+        ctx.fillStyle = '#bbb';
+        ctx.fillRect(this._x - this.offsetSize, this._y - this.offsetSize, this._size, this._size);
+        ctx.fillStyle = '#b22222';
+        ctx.fillRect(this._x - this.offsetSize + 1, this._y - this.offsetSize + 1, this.offsetSize - 1, this.offsetSize - 1);
+        ctx.fillRect(this._x + 1, this._y - this.offsetSize + 1, this.offsetSize - 1, this.offsetSize - 1);
+        ctx.fillRect(this._x - this.offsetSize + 1, this._y + 1, this.offsetSize - 1, this.offsetSize - 1);
+        ctx.fillRect(this._x + 1, this._y + 1, this.offsetSize - 1, this.offsetSize - 1);
+        ctx.fillStyle = prevColor;
+        this._section = blockSection.FULL;
+    }
+
+    clear(section) {
+        switch(section) {
+            case 'top':
+            ctx.clearRect(this._x - this.offsetSize, this._y - this.offsetSize, this._size, this.offsetSize);
+            this._section = blockSection.BOTTOM;
+            this.hitbox = {
+                xMin : this._x - this.offsetSize,
+                xMax : this._x + this.offsetSize,
+                yMin : this._y,
+                yMax : this._y + this.offsetSize
+            };
+            break;
+            case 'bottom':
+            ctx.clearRect(this._x - this.offsetSize, this._y + 1, this._size, this.offsetSize);
+            this._section = blockSection.TOP;
+            this.hitbox = {
+                xMin : this._x - this.offsetSize,
+                xMax : this._x + this.offsetSize,
+                yMin : this._y - this.offsetSize,
+                yMax : this._y
+            };
+            break;
+            case 'left':
+            ctx.clearRect(this._x - this.offsetSize, this._y - this.offsetSize, this.offsetSize, this._size);
+            this._section = blockSection.RIGHT;
+            this.hitbox = {
+                xMin : this._x,
+                xMax : this._x + this.offsetSize,
+                yMin : this._y - this.offsetSize,
+                yMax : this._y + this.offsetSize
+            };
+            break;
+            case 'right':
+            ctx.clearRect(this._x + 1, this._y - this.offsetSize, this.offsetSize, this._size);
+            this._section = blockSection.LEFT;
+            this.hitbox = {
+                xMin : this._x - this.offsetSize,
+                xMax : this._x,
+                yMin : this._y - this.offsetSize,
+                yMax : this._y + this.offsetSize
+            };
+            break;
+            case 'full':
+            ctx.clearRect(this._x - this.offsetSize, this._y - this.offsetSize, this._size, this._size);
+            this._section = null;
+            break;
+        }
+    }
+}
+
+class Water extends Block {
+    constructor(x, y, size) {
+        super(x, y, size);
+        this._animationId = null;
+    }
+
+    draw() {
+        let prevColor = ctx.fillStyle;
+        ctx.fillStyle = '#0000cd';
+        ctx.fillRect(this._x - this.offsetSize, this._y - this.offsetSize, this._size, this._size);
+        ctx.fillStyle = '#0ff';
+        ctx.fillRect(this._x + 1, this._y - this.offsetSize / 2, this.offsetSize - 1, this.offsetSize / 5);
+        ctx.fillRect(this._x - this.offsetSize + 1, this._y + this.offsetSize / 2, this.offsetSize - 1, this.offsetSize / 5);
+        let turn = true;
+        this._animationId = setInterval(() => {
+            if (turn) {
+                ctx.fillStyle = '#0000cd';
+                ctx.fillRect(this._x - this.offsetSize, this._y - this.offsetSize, this._size, this._size);
+                ctx.fillStyle = '#0ff';
+                ctx.fillRect(this._x - this.offsetSize + 1, this._y - this.offsetSize / 2, this.offsetSize - 1, this.offsetSize / 5);
+                ctx.fillRect(this._x + 1, this._y + this.offsetSize / 2, this.offsetSize - 1, this.offsetSize / 5);
+                turn = !turn;
+            } else {
+                ctx.fillStyle = '#0000cd';
+                ctx.fillRect(this._x - this.offsetSize, this._y - this.offsetSize, this._size, this._size);
+                ctx.fillStyle = '#0ff';
+                ctx.fillRect(this._x + 1, this._y - this.offsetSize / 2, this.offsetSize - 1, this.offsetSize / 5);
+                ctx.fillRect(this._x - this.offsetSize + 1, this._y + this.offsetSize / 2, this.offsetSize - 1, this.offsetSize / 5);
+                turn = !turn;
+            }
+        }, 1000);
+        ctx.fillStyle = prevColor;
+    }
+
+    clear() {
+        ctx.clearRect(this._x - this.offsetSize, this._y - this.offsetSize, this._size, this._size);
+        clearInterval(this._animationId);
+    }
+}
+
 class Interaction {
-    static isBulletHitsTank(bullet, tank) {
-        return bullet.forePoints.some(point => tank.isHitboxHit(point.x, point.y));
+
+    static isBulletHitsTanks(bullet, tanks) {
+        let records = [];
+        tanks.forEach((tank, index) => {
+            if (tank != null) {
+                if (bullet.isInterboxHit(tank.center.x, tank.center.y)) {
+                    if (bullet.forePoints.some(point => tank.isHitboxHit(point.x, point.y))) {
+                        records.push({
+                            isHit: true,
+                            target: tank,
+                            index: index
+                        });
+                    } else {
+                        records.push({
+                            isHit: false,
+                            target: tank,
+                            index: index
+                        });
+                    }
+                }
+            }
+        });
+        return records;
+    }
+
+    static isBulletHitsBlocks(bullet, blocks) {
+        let records = [];
+        blocks.forEach((block, index) => {
+            if (block != null) {
+                if (bullet.isInterboxHit(block.center.x, block.center.y)) {
+                    if (bullet.forePoints.some(point => block.isHitboxHit(point.x, point.y))) {
+                        records.push({
+                            isHit: true,
+                            target: block,
+                            index: index
+                        });
+                    } else {
+                        records.push({
+                            isHit: false,
+                            target: block,
+                            index: index
+                        });
+                    }
+                }
+            }
+        });
+        return records;
+    }
+
+    static isTankCollidesTanks(tank, otherTanks) {
+        let records = [];
+        otherTanks.forEach((anotherTank, index) => {
+            if (anotherTank != null) {
+                if (tank.isInterboxHit(anotherTank.center.x, anotherTank.center.y)) {
+                    if (tank.forePoints.some(point => anotherTank.isHitboxHit(point.x, point.y))) {
+                        records.push({
+                            isCollided: true,
+                            target: anotherTank,
+                            index: index
+                        });
+                    } else {
+                        records.push({
+                            isCollided: false,
+                            target: anotherTank,
+                            index: index
+                        });
+                    }
+                }
+            }
+        });
+        return records;
+    }
+
+    static isTankCollidesBlocks(tank, blocks) {
+        let records = [];
+        blocks.forEach((block, index) => {
+            if (block != null) {
+                if (tank.isInterboxHit(block.center.x, block.center.y)) {
+                    if (tank.forePoints.some(point => block.isHitboxHit(point.x, point.y))) {
+                        records.push({
+                            isCollided: true,
+                            target: block,
+                            index: index
+                        });
+                    } else {
+                        records.push({
+                            isCollided: false,
+                            target: block,
+                            index: index
+                        });
+                    }
+                }
+            }
+        });
+        return records;
     }
 
     static isBulletHitsWall(bullet) {
-        if (bullet.fore.yMin == 0 || bullet.fore.yMax == fieldHeight || bullet.fore.xMin == 0 || bullet.fore.xMax == fieldWidth) {
+        if (bullet.fore.yMin == -1 || bullet.fore.yMax == fieldHeight || bullet.fore.xMin == -1 || bullet.fore.xMax == fieldWidth) {
             return true;
         }
         return false;
     }
 
-    static isTankCollidesTank(tank, anotherTank) {
-        return tank.forePoints.some(point => anotherTank.isHitboxHit(point.x, point.y));
-    }
-
     static isTankCollidesWall(tank) {
-        if (tank.fore.yMin == 0 || tank.fore.yMax == fieldHeight || tank.fore.xMin == 0 || tank.fore.xMax == fieldWidth) {
+        if (tank.fore.yMin == -1 || tank.fore.yMax == fieldHeight || tank.fore.xMin == -1 || tank.fore.xMax == fieldWidth) {
             return true;
         }
         return false;
@@ -646,61 +1047,173 @@ class Interaction {
 }
 
 class Handler {
-    static handleShot(tank, enemies) {
+    static handleShot(tank, otherTanks, blocks) {
         let bullet = tank.shoot();
         bullet.draw();
         let shotId = setInterval(() => {
             bullet.clear();
             bullet.move();
-            if (Interaction.isBulletHitsWall(bullet)) {
-                bullet.clear();
-                clearInterval(shotId);
-            } else if (enemies.length != 0) {
-                let isEnemyHit = enemies.some((enemy, index) => {
-                    if (Interaction.isBulletHitsTank(bullet, enemy)) {
-                        enemy.clear();
-                        enemies.splice(index, 1);
-                        //delete enemy;
-                        return true;
+            let isHitWall = Interaction.isBulletHitsWall(bullet);
+            let isHitBlock = false;
+            let isHitTank = false;
+            if (blocks.length != 0) {
+                let records = Interaction.isBulletHitsBlocks(bullet, blocks);
+                records.forEach(record => {
+                    let isHit = record.isHit;
+                    isHitBlock += isHit;
+                    if (isHit) {
+                        let block = record.target;
+                        let index = record.index;
+                        if (block.isBroken) {
+                            block.clear(blockSection.FULL);
+                            blocks.splice(index, 1, null);
+                        } else {
+                            switch(bullet.direction) {
+                                case 'up':
+                                block.clear(blockSection.BOTTOM);
+                                break;
+                                case 'down':
+                                block.clear(blockSection.TOP);
+                                break;
+                                case 'left':
+                                block.clear(blockSection.RIGHT);
+                                break;
+                                case 'right':
+                                block.clear(blockSection.LEFT);
+                                break;
+                            }
+                            block.isBroken = true;
+                        }
                     }
-                    return false;
                 });
-                if (isEnemyHit) {
-                    bullet.clear();
-                    clearInterval(shotId);
-                } else {
-                    bullet.draw();
-                }
+            }
+            if (otherTanks.length != 0) {
+                let records = Interaction.isBulletHitsTanks(bullet, otherTanks);
+                records.forEach(record => {
+                    let isHit = record.isHit;
+                    isHitTank += isHit;
+                    if (isHit) {
+                        record.target.clear();
+                        otherTanks.splice(record.index, 1, null);
+                    }
+                });
+            }
+            if (isHitBlock || isHitWall || isHitTank) {
+                tank.clear();
+                tank.draw();
+                clearInterval(shotId);
             } else {
                 bullet.draw();
             }
         }, 5);
     }
 
-    static handleCollision(tank, others) {
-        if (!Interaction.isTankCollidesWall(tank)) {
-            if (others.length != 0) {
-                return others.some(anotherTank => Interaction.isTankCollidesTank(tank, anotherTank));
-            }
-        } else if (Interaction.isTankCollidesWall(tank)) {
-            return true;
-        }
-        return false;
-    }
-
-    static handleMove(tank, direction, otherTanks) {
+    static handleMove(tank, direction, otherTanks, blocks) {
         tank.clear();
         tank.direction = direction;
         tank.move();
-        let isCollided = this.handleCollision(tank, otherTanks);
-        if (isCollided) {
+        let isCollidedWall = Interaction.isTankCollidesWall(tank);
+        let isCollidedTank = false;
+        let isCollidedBlock = false;
+        if (otherTanks.length != 0) {
+            let records = Interaction.isTankCollidesTanks(tank, otherTanks);
+            records.forEach(record => {
+                let isCollided = record.isCollided;
+                isCollidedTank += isCollided;
+                if (isCollided) {
+                    record.target.clear();
+                    record.target.draw();
+                }
+            });
+        }
+        if (blocks.length != 0) {
+            let records = Interaction.isTankCollidesBlocks(tank, blocks);
+            records.forEach(record => {
+                let isCollided = record.isCollided;
+                isCollidedBlock += isCollided;
+                let block = record.target;
+                switch(block.section) {
+                    case 'full':
+                    block.clear(blockSection.FULL);
+                    block.draw();
+                    break;
+                    case 'top':
+                    block.clear(blockSection.FULL);
+                    block.draw();
+                    block.clear(blockSection.BOTTOM);
+                    break;
+                    case 'bottom':
+                    block.clear(blockSection.FULL);
+                    block.draw();
+                    block.clear(blockSection.TOP);
+                    break;
+                    case 'left':
+                    block.clear(blockSection.FULL);
+                    block.draw();
+                    block.clear(blockSection.RIGHT);
+                    break;
+                    case 'right':
+                    block.clear(blockSection.FULL);
+                    block.draw();
+                    block.clear(blockSection.LEFT);
+                    break;
+                }
+            });
+        }
+        if (isCollidedBlock || isCollidedTank || isCollidedWall) {
             tank.moveBack();
             tank.draw();    
         } else {
             tank.draw();
         }
-        otherTanks.forEach(tank => tank.clear());
-        otherTanks.forEach(tank => tank.draw());
+    }
+
+    static handleDirectionChange(tank, direction, otherTanks, blocks) {
+        tank.clear();
+        let isCollidedWall = Interaction.isTankCollidesWall(tank);
+        let isCollidedTank = false;
+        let isCollidedBlock = false;
+        if (otherTanks.length != 0) {
+            let records = Interaction.isTankCollidesTanks(tank, otherTanks);
+            records.forEach(record => {
+                record.target.clear();
+                record.target.draw();
+            });
+        }
+        if (blocks.length != 0) {
+            let records = Interaction.isTankCollidesBlocks(tank, blocks);
+            records.forEach(record => {
+                let block = record.target;
+                switch(block.section) {
+                    case 'full':
+                    block.clear(blockSection.FULL);
+                    block.draw();
+                    break;
+                    case 'top':
+                    block.clear(blockSection.FULL);
+                    block.draw();
+                    block.clear(blockSection.BOTTOM);
+                    break;
+                    case 'bottom':
+                    block.clear(blockSection.FULL);
+                    block.draw();
+                    block.clear(blockSection.TOP);
+                    break;
+                    case 'left':
+                    block.clear(blockSection.FULL);
+                    block.draw();
+                    block.clear(blockSection.RIGHT);
+                    break;
+                    case 'right':
+                    block.clear(blockSection.FULL);
+                    block.draw();
+                    block.clear(blockSection.LEFT);
+                    break;
+                }
+            });
+        }
+        tank.direction = direction;
+        tank.draw();
     }
 }
 
@@ -753,7 +1266,7 @@ let tankPlayerProps = {
         turret: turrets.model1,
         cannon: cannons.model1    
     },
-    speed: 2
+    speed: 1
 };
 
 let tankEnemyProps = {
@@ -763,7 +1276,7 @@ let tankEnemyProps = {
         turret: turrets.model2,
         cannon: cannons.model2    
     },
-    speed: 2
+    speed: 1
 };
 
 let keyActions = {
@@ -778,14 +1291,27 @@ let keyActions = {
     83: 'down'
 };
 
-let tankPlayer = new Tank(500, 300, tankPlayerProps.parts, direction.UP, tankPlayerProps.speed);
+let tankPlayer = new Tank(300, 200, tankPlayerProps.parts, direction.UP, tankPlayerProps.speed);
 tankPlayer.draw();
 enemies = [];
-enemies.push(new Tank(200, 100, tankEnemyProps.parts, direction.RIGHT, tankEnemyProps.speed));
-enemies.push(new Tank(350, 200, tankEnemyProps.parts, direction.DOWN, tankEnemyProps.speed));
-enemies.push(new Tank(700, 300, tankEnemyProps.parts, direction.RIGHT, tankEnemyProps.speed));
-enemies.push(new Tank(550, 100, tankEnemyProps.parts, direction.DOWN, tankEnemyProps.speed));
+enemies.push(new Tank(199, 200, tankEnemyProps.parts, direction.UP, tankEnemyProps.speed));
+// enemies.push(new Tank(220, 200, tankEnemyProps.parts, direction.DOWN, tankEnemyProps.speed));
+// enemies.push(new Tank(700, 300, tankEnemyProps.parts, direction.RIGHT, tankEnemyProps.speed));
+// enemies.push(new Tank(550, 100, tankEnemyProps.parts, direction.DOWN, tankEnemyProps.speed));
 enemies.forEach(enemy => enemy.draw());
+
+let blocks = [];
+
+for (let i = 10; i < 1050; i += 21) {
+    for (let j = 10; j < 100; j += 21) {
+        blocks.push(new Brick(i, j, size + 1));
+    }
+    // blocks.push(new Brick(i, 619, size + 1));
+    // blocks.push(new Water(i, 31, size + 1));
+    // blocks.push(new Water(i, 52, size + 1));
+}
+
+blocks.forEach(block => block.draw());
 
 $('body').keydown(event => {
     let key = event.keyCode;
@@ -795,17 +1321,51 @@ $('body').keydown(event => {
         case 39:
         case 40:
         let direction = keyActions[key];
-        Handler.handleMove(tankPlayer, direction, enemies);
+        if (tankPlayer.direction === direction) {
+            Handler.handleMove(tankPlayer, direction, enemies, blocks);
+        } else {
+            Handler.handleDirectionChange(tankPlayer, direction, enemies, blocks);
+        }
         break;
         case 32:
-        Handler.handleShot(tankPlayer, enemies);
+        Handler.handleShot(tankPlayer, enemies, blocks);
         break;
     }
 });
 
-/* let others = [tankPlayer];
-setInterval(() => {
-    enemies.forEach(tank => {
-        Handler.handleShot(tank, others);
-    })
-}, 3000); */
+/* let i = 0;
+let delay = 1000;
+let others = [tankPlayer];
+let pai = () => {
+    let id = setTimeout(() => {
+        if (i < 6) {
+            Handler.handleShot(enemies[0], others, blocks);
+        } else if (i < 200) {
+            delay = 40;
+            Handler.handleMove(enemies[0], direction.UP, others, blocks);
+        } else if (i < 210) {
+            delay = 1000;
+            Handler.handleDirectionChange(enemies[0], direction.RIGHT);
+            Handler.handleShot(enemies[0], others, blocks);
+        } else if (i < 300) {
+            delay = 40;
+            Handler.handleMove(enemies[0], direction.RIGHT, others, blocks);
+        } else if (i < 305) {
+            delay = 1000;
+            Handler.handleDirectionChange(enemies[0], direction.LEFT);
+        } else if (i < 320) {
+            delay = 1000;
+            Handler.handleShot(enemies[0], others, blocks);
+        } else if (i < 500) {
+            delay = 40;
+            Handler.handleMove(enemies[0], direction.LEFT, others, blocks);
+        } else {
+            clearTimeout(id);
+        }
+        i++;
+        pai();
+    }, delay);
+};
+
+pai(); */
+
