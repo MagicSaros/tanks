@@ -192,7 +192,8 @@ class Bullet {
         this._height = height;  // 5px
         this._color = color;
         this._direction = direction;
-        this._speed = speed;
+        this._speed = speed * 2;
+        this._shotId = null;
         this._blockSize = blockSize;
         this._offsetWidth = (this._width - 1) / 2; // 1px
         this._offsetHeight = (this._height - 1) / 2; // 2px
@@ -212,6 +213,21 @@ class Bullet {
 
     get offsetHeight() {
         return this._offsetHeight;
+    }
+
+    get center() {
+        return {
+            x: this._x,
+            y: this._y
+        };
+    }
+
+    get shotId() {
+        return this._shotId;
+    }
+
+    set shotId(value) {
+        this._shotId = value;
     }
 
     get fore() {
@@ -302,25 +318,25 @@ class Bullet {
                 xMin: this._x - this._offsetWidth - (this._blockSize - 1) / 2,
                 xMax: this._x + this._offsetWidth + (this._blockSize - 1) / 2,
                 yMin: this._y - this._offsetHeight - (this._blockSize - 1) / 2 - 1,
-                yMax: this._y + this._height
+                yMax: this._y + this._blockSize // + this._height
             };
             case 'down':
             return {
                 xMin: this._x - this._offsetWidth - (this._blockSize - 1) / 2,
                 xMax: this._x + this._offsetWidth + (this._blockSize - 1) / 2,
-                yMin: this._y - this._height,
+                yMin: this._y - this._blockSize, // - this._height,
                 yMax: this._y + this._offsetHeight + (this._blockSize - 1) / 2 + 1
             };
             case 'left':
             return {
                 xMin: this._x - this._offsetWidth - (this._blockSize - 1) / 2 - 1,
-                xMax: this._x + this._height,
+                xMax: this._x + this._blockSize, // + this._height,
                 yMin: this._y - this._offsetHeight - (this._blockSize - 1) / 2,
                 yMax: this._y + this._offsetHeight + (this._blockSize - 1) / 2
             };
             case 'right':
             return {
-                xMin: this._x - this._height,
+                xMin: this._x - this._blockSize, // - this._height,
                 xMax: this._x + this._offsetWidth + (this._blockSize - 1) / 2 + 1,
                 yMin: this._y - this._offsetHeight - (this._blockSize - 1) / 2,
                 yMax: this._y + this._offsetHeight + (this._blockSize - 1) / 2
@@ -758,10 +774,25 @@ class Block {
         this._y = y;
         this._size = size;
         this._section = blockSection.FULL;
+        this._isBreakable = false;
+        this._isAttackable = true;
+        this._isIgnorable = false;
     }
 
     get offsetSize() {
         return (this._size - 1) / 2;
+    }
+
+    get isBreakable() {
+        return this._isBreakable;
+    }
+
+    get isAttackable() {
+        return this._isAttackable;
+    }
+
+    get isIgnorable() {
+        return this._isIgnorable;
     }
 
     get section() {
@@ -805,13 +836,14 @@ class Block {
 class Brick extends Block {
     constructor(x, y, size) {
         super(x, y, size);
+        this._isBreakable = true;
+        this._isBroken = false;
         this._hitbox = {
             xMin : this._x - this.offsetSize,
             xMax : this._x + this.offsetSize,
             yMin : this._y - this.offsetSize,
             yMax : this._y + this.offsetSize
         };
-        this._isBroken = false;
     }
 
     get hitbox() {
@@ -896,6 +928,7 @@ class Brick extends Block {
 class Water extends Block {
     constructor(x, y, size) {
         super(x, y, size);
+        this._isIgnorable = true;
         this._animationId = null;
     }
 
@@ -923,13 +956,48 @@ class Water extends Block {
                 ctx.fillRect(this._x - this.offsetSize + 1, this._y + this.offsetSize / 2, this.offsetSize - 1, this.offsetSize / 5);
                 turn = !turn;
             }
-        }, 1000);
+        }, 3000);
         ctx.fillStyle = prevColor;
     }
 
     clear() {
         ctx.clearRect(this._x - this.offsetSize, this._y - this.offsetSize, this._size, this._size);
         clearInterval(this._animationId);
+    }
+}
+
+class Metall extends Block {
+    constructor(x, y, size) {
+        super(x, y, size);
+        this._isAttackable = false;
+    }
+
+    draw() {
+        let prevColor = ctx.fillStyle;
+        ctx.fillStyle = "#696969";
+        ctx.fillRect(this._x - this.offsetSize, this._y - this.offsetSize, this._size, this._size);
+        ctx.fillStyle = "#f8f8ff";
+        ctx.fillRect(this._x - this.offsetSize / 2, this._y - this.offsetSize / 2, (this._size - 1) / 2 + 1, (this._size - 1) / 2 + 1);
+        ctx.fillStyle = prevColor;
+    }
+
+    clear() {
+        ctx.clearRect(this._x - this.offsetSize, this._y - this.offsetSize, this._size, this._size);
+    }
+}
+
+class Stone extends Block {
+    constructor(x, y, size) {
+        super(x, y, size);
+    }
+
+    draw() {
+        let prevColor = ctx.fillStyle;
+        ctx.fillStyle = "#a9a9a9";
+        ctx.fillRect(this._x - this.offsetSize, this._y - this.offsetSize, this._size, this._size);
+        ctx.fillStyle = "#595959";
+        canfi.fillCircle(this._x, this._y, this.offsetSize / 2);
+        ctx.fillStyle = prevColor;
     }
 }
 
@@ -974,6 +1042,30 @@ class Interaction {
                         records.push({
                             isHit: false,
                             target: block,
+                            index: index
+                        });
+                    }
+                }
+            }
+        });
+        return records;
+    }
+
+    static isBulletHitsBullets(bullet, otherBullets) {
+        let records = [];
+        otherBullets.forEach((anotherBullet, index) => {
+            if (anotherBullet != null && bullet != anotherBullet) {
+                if (bullet.isInterboxHit(anotherBullet.center.x, anotherBullet.center.y)) {
+                    if (bullet.forePoints.some(point => anotherBullet.isHitboxHit(point.x, point.y))) {
+                        records.push({
+                            isHit: true,
+                            target: anotherBullet,
+                            index: index
+                        });
+                    } else {
+                        records.push({
+                            isHit: false,
+                            target: anotherBullet,
                             index: index
                         });
                     }
@@ -1047,15 +1139,18 @@ class Interaction {
 }
 
 class Handler {
-    static handleShot(tank, otherTanks, blocks) {
+    static handleShot(tank, otherTanks, blocks, otherBullets) {
         let bullet = tank.shoot();
         bullet.draw();
-        let shotId = setInterval(() => {
+        bullet.shotId = setInterval(() => {
             bullet.clear();
             bullet.move();
             let isHitWall = Interaction.isBulletHitsWall(bullet);
             let isHitBlock = false;
             let isHitTank = false;
+            let isHitBullet = false;
+            let isHitInvulnerable = false;
+            let isHitIgnorable = false;
             if (blocks.length != 0) {
                 let records = Interaction.isBulletHitsBlocks(bullet, blocks);
                 records.forEach(record => {
@@ -1064,7 +1159,14 @@ class Handler {
                     if (isHit) {
                         let block = record.target;
                         let index = record.index;
-                        if (block.isBroken) {
+                        if (!block.isAttackable) {
+                            isHitInvulnerable = true;
+                        } else if (block.isIgnorable) {
+                            isHitIgnorable = true;
+                            isHitBlock = false;
+                            block.clear();
+                            block.draw();
+                        } else if (block.isBroken || !block.isBreakable) {
                             block.clear(blockSection.FULL);
                             blocks.splice(index, 1, null);
                         } else {
@@ -1084,6 +1186,11 @@ class Handler {
                             }
                             block.isBroken = true;
                         }
+                    } else if (record.target.isIgnorable) {
+                        isHitIgnorable = true;
+                        isHitBlock += false;
+                        record.target.clear();
+                        record.target.draw();
                     }
                 });
             }
@@ -1098,14 +1205,17 @@ class Handler {
                     }
                 });
             }
-            if (isHitBlock || isHitWall || isHitTank) {
+            if (otherBullets.length != 0) {
+                // It's not implemented
+            }
+            if (isHitBlock || isHitWall || isHitTank || isHitBullet || isHitInvulnerable) {
                 tank.clear();
                 tank.draw();
-                clearInterval(shotId);
-            } else {
+                clearInterval(bullet.shotId);
+            } else if (!isHitIgnorable) {
                 bullet.draw();
             }
-        }, 5);
+        }, 10);
     }
 
     static handleMove(tank, direction, otherTanks, blocks) {
@@ -1291,24 +1401,23 @@ let keyActions = {
     83: 'down'
 };
 
-let tankPlayer = new Tank(300, 200, tankPlayerProps.parts, direction.UP, tankPlayerProps.speed);
+let enemies = [];
+let blocks = [];
+let bullets = [];
+
+let tankPlayer = new Tank(800, 200, tankPlayerProps.parts, direction.UP, tankPlayerProps.speed);
 tankPlayer.draw();
-enemies = [];
-enemies.push(new Tank(199, 200, tankEnemyProps.parts, direction.UP, tankEnemyProps.speed));
-// enemies.push(new Tank(220, 200, tankEnemyProps.parts, direction.DOWN, tankEnemyProps.speed));
-// enemies.push(new Tank(700, 300, tankEnemyProps.parts, direction.RIGHT, tankEnemyProps.speed));
-// enemies.push(new Tank(550, 100, tankEnemyProps.parts, direction.DOWN, tankEnemyProps.speed));
+enemies.push(new Tank(199, 500, tankEnemyProps.parts, direction.RIGHT, tankEnemyProps.speed));
 enemies.forEach(enemy => enemy.draw());
 
-let blocks = [];
-
-for (let i = 10; i < 1050; i += 21) {
-    for (let j = 10; j < 100; j += 21) {
-        blocks.push(new Brick(i, j, size + 1));
+for (let i = 10; i < 600; i += 21) {
+    for (let j = 50; j < 200; j += 21) {
+        if (j % 2 == 0) {
+            blocks.push(new Stone(i, j, size + 1));
+        } else {
+            blocks.push(new Brick(i, j, size + 1));
+        }
     }
-    // blocks.push(new Brick(i, 619, size + 1));
-    // blocks.push(new Water(i, 31, size + 1));
-    // blocks.push(new Water(i, 52, size + 1));
 }
 
 blocks.forEach(block => block.draw());
@@ -1328,7 +1437,7 @@ $('body').keydown(event => {
         }
         break;
         case 32:
-        Handler.handleShot(tankPlayer, enemies, blocks);
+        Handler.handleShot(tankPlayer, enemies, blocks, bullets);
         break;
     }
 });
@@ -1368,4 +1477,3 @@ let pai = () => {
 };
 
 pai(); */
-
